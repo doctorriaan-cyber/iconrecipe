@@ -1092,9 +1092,8 @@
         );
       };
 
-      const RecipeList = ({ recipes, sections, onSelectRecipe, onAddRecipe, onGoToSettings, onGoToShoppingList, ownerName }) => {
+      const RecipeList = ({ recipes, sections, onSelectRecipe, onAddRecipe, onGoToSettings, onGoToShoppingList, ownerName, openSections, setOpenSections }) => {
         const [searchTerm, setSearchTerm] = useState('');
-        const [openSections, setOpenSections] = useState({});
 
         const sortedRecipes = useMemo(() => {
             return [...recipes].sort((a, b) => a.name.localeCompare(b.name));
@@ -1956,6 +1955,8 @@
         const [view, setView] = useState({ page: 'list' });
         const [confirmState, setConfirmState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
         const [addUnitState, setAddUnitState] = useState({ isOpen: false, onSave: (newUnit) => {} });
+        const [openSections, setOpenSections] = useState({});
+        const listScrollPositionRef = useRef(0);
 
         useEffect(() => {
             // One-time migration to add 'order' to sections.
@@ -2006,6 +2007,17 @@
             // Multiplying it scales all rem-based units in the app.
             document.documentElement.style.fontSize = `${16 * textSize}px`;
         }, [textSize]);
+        
+        useEffect(() => {
+          if (view.page === 'list') {
+            // Restore scroll position when returning to the list.
+            // A timeout ensures the content has rendered before scrolling.
+            setTimeout(() => window.scrollTo(0, listScrollPositionRef.current), 0);
+          } else {
+            // Scroll to top for all other pages.
+            window.scrollTo(0, 0);
+          }
+        }, [view.page]);
 
         const sortedPreferredEmojis = useMemo(() => {
             const counts = new Map();
@@ -2135,6 +2147,11 @@
 
                 return sectionsCopy;
             });
+        };
+        
+        const handleSelectRecipe = (id) => {
+            listScrollPositionRef.current = window.scrollY;
+            setView({ page: 'detail', id });
         };
 
         const handleSaveRecipe = (recipeData) => {
@@ -2344,11 +2361,13 @@
               return React.createElement(RecipeList, {
                 recipes: recipes,
                 sections: sections,
-                onSelectRecipe: (id) => setView({ page: 'detail', id }),
+                onSelectRecipe: handleSelectRecipe,
                 onAddRecipe: () => setView({ page: 'form' }),
                 onGoToSettings: () => setView({ page: 'settings' }),
                 onGoToShoppingList: () => setView({ page: 'shopping_list' }),
-                ownerName: ownerName
+                ownerName: ownerName,
+                openSections: openSections,
+                setOpenSections: setOpenSections
               });
             case 'detail':
               const selectedRecipe = recipes.find(r => r.id === view.id);
